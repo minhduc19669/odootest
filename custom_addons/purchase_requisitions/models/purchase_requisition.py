@@ -44,11 +44,15 @@ class PurchaseRequisition(models.Model):
                                            string='Requisition Line ID')
     confirmed_by_id = fields.Many2one('res.users', string='Confirmed By', copy=False)
     confirmed_date = fields.Date(string='Confirmed Date', readonly=True, copy=False)
-    picking_type_id = fields.Many2one('stock.picking.type', string='Purchase Type', required=True)
+    picking_type_id = fields.Many2one('stock.picking.type', string='Purchase Operation Type', required=True)
     choose_manual_location = fields.Boolean(string='Choose manual location')
     destination_location_id = fields.Many2one('stock.location', 'Destination Location')
     source_location_id = fields.Many2one('stock.location', 'Source Location')
-    internal_picking_id = fields.Many2one('stock.picking.type', 'Internal picking type')
+    internal_picking_id = fields.Many2one('stock.picking.type', 'Internal picking type', required=True)
+
+    # @api.onchange('company_id','picking_type_id','choose_manual_location')
+    # def _checker(self):
+    #     pass
 
     @api.model
     def create(self, vals):
@@ -112,7 +116,39 @@ class PurchaseRequisition(models.Model):
                                 'date_planned': datetime.now()
                             })
                 else:
-
+                    if line.vendor_id:
+                        for vendor in line.vendor_id:
+                            po = self.env['stock.picking'].search(
+                                [('req_picking_id', '=', req.id), ('partner_id', '=', vendor.id)])
+                            if po:
+                                if req.choose_manual_location:
+                                    picking_line = {
+                                        'name': line.product_id.name,
+                                        'product_id': line.product_id.id,
+                                        'product_uom_qty': line.qty,
+                                        'picking_type_id': req.picking_type_id.id,
+                                        'product_uom': line.uom_id.id,
+                                        'location_id': req.source_location_id.id,
+                                        'location_dest_id': req.destination_location_id.id
+                                    }
+                                else:
+                                    picking_line = {
+                                        'name': line.product_id.name,
+                                        'product_id': line.product_id.id,
+                                        'product_uom_qty': line.qty,
+                                        'product_uom': line.uom_id.id,
+                                        'picking_type_id': req.picking_type_id.id,
+                                        'location_id': req.internal_picking_id.default_location_src_id.id,
+                                        'location_dest_id': req.picking_type_id.default_location_dest_id.id
+                                    }
+                                self.env['stock.move'].create(picking_line)
+                            else:
+                                if req.choose_manual_location:
+                                    vals = {
+                                        'partner_id': vendor.id,
+                                        'picking_type_id': req
+                                    }
+                                    pass
 
     def action_approve(self):
         for req in self:
@@ -149,7 +185,6 @@ class PurchaseRequisition(models.Model):
     @api.onchange('department_id', 'employee_id')
     def onchange_department(self):
         for rec in self:
-            print(rec.employee_id)
             rec.department_id = rec.employee_id.sudo().department_id.id
 
 
@@ -182,3 +217,8 @@ class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
     po_requisition_ids = fields.Many2one('minhduc.purchase.requisition', string='Purchase Requisition')
+
+
+class StockPicking(models.Model):
+    _inherit = 'stock.picking'
+    req_picking_id = fields.Many2one('minhduc.purchase.requisition', string='Purchase Requisition')

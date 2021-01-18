@@ -69,7 +69,7 @@
                             </field>
                         </page>
                         <page string="Picking Details"
-                              groups="base.group_user">
+                              groups="purchase_requisitions.group_purchase_requisition_user,purchase_requisitions.group_purchase_department_manager">
                             <group>
                                 <field name="choose_manual_location"/>
                             </group>
@@ -80,7 +80,7 @@
                                 <field name="source_location_id"
                                        attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
                                 <field name="destination_location_id" attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
-                                <field name="internal_picking_id" attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
+                                <field name="internal_picking_id" attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',True)]}"/>
                             </group>
                         </page>
                         <page string="Orther Infomation">
@@ -95,7 +95,7 @@
                                     <field name="confirmed_date"/>
                                     <field name="department_approval_date"/>
                                     <field name="approved_date"/>
-                                    <field name="rejected_date"/>
+                                    <field name="rejected_date" readonly="1"/>
                                 </group>
                             </group>
                         </page>
