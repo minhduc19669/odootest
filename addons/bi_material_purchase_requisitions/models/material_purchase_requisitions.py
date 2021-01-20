@@ -250,10 +250,7 @@ class MaterialPurchaseRequisition(models.Model):
                                         'location_id': requisition.source_location_id.id,
                                         'location_dest_id': requisition.destination_location_id.id,
                                     }
-
-
                                 else:
-
                                     val = {
                                         'partner_id': vendor.id,
                                         'location_id': picking_type_id.default_location_src_id.id,
@@ -279,8 +276,8 @@ class MaterialPurchaseRequisition(models.Model):
                                         'location_dest_id': requisition.destination_location_id.id,
                                         'picking_id': stock_picking.id,
                                         'origin': requisition.sequence
-
                                     }
+                                    
                                 else:
                                     pic_line_val = {
                                         'partner_id': vendor.id,
@@ -292,12 +289,10 @@ class MaterialPurchaseRequisition(models.Model):
                                         'location_dest_id': picking_type_id.default_location_dest_id.id,
                                         'picking_id': stock_picking.id,
                                         'origin': requisition.sequence
-
                                     }
                                 stock_move = stock_move_obj.create(pic_line_val)
                     else:
                         pur_order = stock_picking_obj.search([('requisition_picking_id', '=', requisition.id)])
-
                         if pur_order:
                             if requisition.use_manual_locations:
                                 pic_line_val = {
@@ -326,8 +321,6 @@ class MaterialPurchaseRequisition(models.Model):
                             if requisition.use_manual_locations:
 
                                 val = {
-                                    'location_id': requisition.source_location_id.id,
-                                    'location_dest_id': requisition.destination_location_id.id,
                                     'picking_type_id': picking_type_id.id,
                                     # 'material_requisition_id':requisition.job_order_id.id,
                                     # 'construction_project_id' : requisition.construction_project_id.id,
@@ -342,8 +335,6 @@ class MaterialPurchaseRequisition(models.Model):
 
                                 location = self.env['stock.location'].search([('usage', '=', 'supplier')], limit=1)
                                 val = {
-                                    'location_id': picking_type_id.default_location_src_id.id,
-                                    'location_dest_id': picking_type_id.default_location_dest_id.id,
                                     'picking_type_id': picking_type_id.id,
                                     # 'material_requisition_id':requisition.job_order_id.id,
                                     # 'construction_project_id' : requisition.construction_project_id.id,

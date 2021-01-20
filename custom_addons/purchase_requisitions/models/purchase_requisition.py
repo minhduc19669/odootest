@@ -49,10 +49,25 @@ class PurchaseRequisition(models.Model):
     destination_location_id = fields.Many2one('stock.location', 'Destination Location')
     source_location_id = fields.Many2one('stock.location', 'Source Location')
     internal_picking_id = fields.Many2one('stock.picking.type', 'Internal picking type', required=True)
+    internal_picking_count = fields.Integer('Internal Picking Count', compute='_get_internal_picking_count')
 
     # @api.onchange('company_id','picking_type_id','choose_manual_location')
     # def _checker(self):
     #     pass
+    def _get_internal_picking_count(self):
+        for rec in self:
+            picking_ids = self.env['stock.picking'].search([('req_picking_id', '=', rec.id)])
+            rec.internal_picking_count=len(picking_ids)
+
+    def internal_picking_button(self):
+        self.ensure_one()
+        return {
+            'name': 'Internal Picking',
+            'type': 'ir.actions.act_window',
+            'view_mode': 'tree,form',
+            'res_model': 'stock.picking',
+            'domain': [('req_picking_id', '=', self.id)],
+        }
 
     @api.model
     def create(self, vals):
@@ -129,7 +144,7 @@ class PurchaseRequisition(models.Model):
                                         'picking_type_id': req.picking_type_id.id,
                                         'product_uom': line.uom_id.id,
                                         'location_id': req.source_location_id.id,
-                                        'location_dest_id': req.destination_location_id.id
+                                        'location_dest_id': req.destination_location_id.id,
                                     }
                                 else:
                                     picking_line = {
@@ -139,16 +154,59 @@ class PurchaseRequisition(models.Model):
                                         'product_uom': line.uom_id.id,
                                         'picking_type_id': req.picking_type_id.id,
                                         'location_id': req.internal_picking_id.default_location_src_id.id,
-                                        'location_dest_id': req.picking_type_id.default_location_dest_id.id
+                                        'location_dest_id': req.picking_type_id.default_location_dest_id.id,
                                     }
                                 self.env['stock.move'].create(picking_line)
                             else:
                                 if req.choose_manual_location:
                                     vals = {
                                         'partner_id': vendor.id,
-                                        'picking_type_id': req
+                                        'picking_type_id': req.picking_type_id.id,
+                                        'company_id': req.company_id.id,
+                                        'req_picking_id': req.id,
+                                        'origin': req.sequence,
+                                        'location_id': req.source_location_id.id,
+                                        'location_dest_id': req.destination_location_id.id,
                                     }
-                                    pass
+                                else:
+                                    vals = {
+                                        'partner_id': vendor.id,
+                                        'picking_type_id': req.picking_type_id.id,
+                                        'company_id': req.company_id.id,
+                                        'req_picking_id': req.id,
+                                        'origin': req.sequence,
+                                        'location_id': req.internal_picking_id.default_location_src_id.id,
+                                        'location_dest_id': req.internal_picking_id.default_location_dest_id.id,
+                                    }
+                                stock_picking = self.env['stock.picking'].create(vals)
+                                if req.choose_manual_location:
+                                    pic_line_val = {
+                                        'partner_id': vendor.id,
+                                        'name': line.product_id.name,
+                                        'product_id': line.product_id.id,
+                                        'product_uom_qty': line.qty,
+                                        'product_uom': line.uom_id.id,
+                                        'location_id': req.source_location_id.id,
+                                        'location_dest_id': req.destination_location_id.id,
+                                        'picking_id': stock_picking.id,
+                                        'origin': req.sequence,
+                                    }
+                                else:
+                                    pic_line_val = {
+                                        'partner_id': vendor.id,
+                                        'name': line.product_id.name,
+                                        'product_id': line.product_id.id,
+                                        'product_uom_qty': line.qty,
+                                        'product_uom': line.uom_id.id,
+                                        'location_id': req.internal_picking_id.default_location_src_id.id or vendor.property_stock_supplier.id,
+                                        'location_dest_id': req.internal_picking_id.default_location_dest_id.id,
+                                        'picking_id': stock_picking.id,
+                                        'origin': req.sequence,
+                                    }
+                                stock_move = self.env['stock.move'].create(pic_line_val)
+                    req.write({
+                        'state': 'po_created',
+                    })
 
     def action_approve(self):
         for req in self:
@@ -197,7 +255,7 @@ class RequisitionLine(models.Model):
     qty = fields.Float('Quantity', default=1.0)
     uom_id = fields.Many2one('uom.uom', string='Unit Of Measure')
     requistion_id = fields.Many2one('minhduc.purchase.requisition', string="Requisition Line")
-    vendor_id = fields.Many2many('res.partner', string='Vendors')
+    vendor_id = fields.Many2many('res.partner', string='Vendors', required=True)
     requisition_action = fields.Selection(
         [
             ('purchase_order', 'Purchase Order'),

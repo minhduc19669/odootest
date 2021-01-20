@@ -37,6 +37,16 @@
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button type="object" name="internal_picking_button" class="oe_stat_button" icon="fa-truck"
+                                attrs="{'invisible': [('internal_picking_count', '=', 0)]}">
+                            <field name="internal_picking_count" widget="statinfo" string="Internal Picking"/>
+                        </button>
+<!--                        <button type="object" name="purchase_order_button" class="oe_stat_button" icon="fa-book"-->
+<!--                                attrs="{'invisible': [('purchase_order_count', '=', 0)]}">-->
+<!--                            <field name="purchase_order_count" widget="statinfo" string="Purchase Order"/>-->
+<!--                        </button>-->
+                    </div>
                     <div class="oe_title oe_left">
                         <field name="sequence"/>
                     </div>
@@ -80,7 +90,8 @@
                                 <field name="source_location_id"
                                        attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
                                 <field name="destination_location_id" attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
-                                <field name="internal_picking_id" attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',True)]}"/>
+                                <field name="internal_picking_id"
+                                       attrs="{'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',True)]}"/>
                             </group>
                         </page>
                         <page string="Orther Infomation">

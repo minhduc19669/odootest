@@ -6,7 +6,7 @@
     'description': "Product Purchase Requisition",
     'author': "minhduc",
     'website': "minhduc.info",
-    'depends': ['base','hr','purchase'],
+    'depends': ['base','hr','purchase','stock','purchase_stock','sale_stock','sale_management'],
     'data': [
         'security/ir.model.access.csv',
         'security/purchase_requisition_security.xml',
