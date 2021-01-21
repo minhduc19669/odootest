@@ -32,12 +32,12 @@ class PurchaseRequisition(models.Model):
     rejected_by_id = fields.Many2one('res.users', string='Rejected By')
     rejected_date = fields.Date('Rejected Date')
     state = fields.Selection([
-        ('new', 'New'),
+        ('new', 'Draft'),
         ('department_approval', 'Waiting Department Approval'),
         ('approve_ur', 'Waiting User Approved'),
         ('approved', 'Approved'),
         ('po_created', 'Purchase Order Created'),
-        ('receive', 'Receive'),
+        ('received', 'Received'),
         ('cancel', 'Cancel')
     ], string='Status', index=True, readonly=True, default='new')
     requisition_line_ids = fields.One2many('requisition.line', 'requistion_id',
@@ -48,16 +48,32 @@ class PurchaseRequisition(models.Model):
     choose_manual_location = fields.Boolean(string='Choose manual location')
     destination_location_id = fields.Many2one('stock.location', 'Destination Location')
     source_location_id = fields.Many2one('stock.location', 'Source Location')
-    internal_picking_id = fields.Many2one('stock.picking.type', 'Internal picking type', required=True)
+    internal_picking_id = fields.Many2one('stock.picking.type', 'Internal picking type')
     internal_picking_count = fields.Integer('Internal Picking Count', compute='_get_internal_picking_count')
+    purchase_order_count = fields.Integer('Purchase Order', compute='_get_purchase_order_count')
 
     # @api.onchange('company_id','picking_type_id','choose_manual_location')
     # def _checker(self):
     #     pass
+    def _get_purchase_order_count(self):
+        for rec in self:
+            purchase_order_ids = self.env['purchase.order'].search([('po_requisition_ids', '=', rec.id)])
+            rec.purchase_order_count = len(purchase_order_ids)
+
+    def purchase_order_button(self):
+        self.ensure_one()
+        return {
+            'name': 'Purchase Order',
+            'type': 'ir.actions.act_window',
+            'view_mode': 'tree,form',
+            'res_model': 'purchase.order',
+            'domain': [('po_requisition_ids', '=', self.id)]
+        }
+
     def _get_internal_picking_count(self):
         for rec in self:
             picking_ids = self.env['stock.picking'].search([('req_picking_id', '=', rec.id)])
-            rec.internal_picking_count=len(picking_ids)
+            rec.internal_picking_count = len(picking_ids)
 
     def internal_picking_button(self):
         self.ensure_one()
@@ -131,6 +147,15 @@ class PurchaseRequisition(models.Model):
                                 'date_planned': datetime.now()
                             })
                 else:
+                    picking_type_id = None
+                    if not req.choose_manual_location:
+                        picking_type_id = req.internal_picking_id
+                    else:
+                        picking_type_id = self.env['stock.picking.type'].search(
+                            [('code', '=', 'internal'), ('company_id', '=', req.company_id.id or False)],
+                            order="id desc", limit=1)
+                        if not picking_type_id:
+                            picking_type_id = req.internal_picking_id
                     if line.vendor_id:
                         for vendor in line.vendor_id:
                             po = self.env['stock.picking'].search(
@@ -141,7 +166,7 @@ class PurchaseRequisition(models.Model):
                                         'name': line.product_id.name,
                                         'product_id': line.product_id.id,
                                         'product_uom_qty': line.qty,
-                                        'picking_type_id': req.picking_type_id.id,
+                                        'picking_id': picking_type_id.id,
                                         'product_uom': line.uom_id.id,
                                         'location_id': req.source_location_id.id,
                                         'location_dest_id': req.destination_location_id.id,
@@ -152,7 +177,7 @@ class PurchaseRequisition(models.Model):
                                         'product_id': line.product_id.id,
                                         'product_uom_qty': line.qty,
                                         'product_uom': line.uom_id.id,
-                                        'picking_type_id': req.picking_type_id.id,
+                                        'picking_id': picking_type_id.id,
                                         'location_id': req.internal_picking_id.default_location_src_id.id,
                                         'location_dest_id': req.picking_type_id.default_location_dest_id.id,
                                     }
@@ -161,49 +186,49 @@ class PurchaseRequisition(models.Model):
                                 if req.choose_manual_location:
                                     vals = {
                                         'partner_id': vendor.id,
-                                        'picking_type_id': req.picking_type_id.id,
+                                        'picking_type_id': picking_type_id.id,
                                         'company_id': req.company_id.id,
                                         'req_picking_id': req.id,
                                         'origin': req.sequence,
                                         'location_id': req.source_location_id.id,
                                         'location_dest_id': req.destination_location_id.id,
                                     }
+                                    stock_picking = self.env['stock.picking'].create(vals)
+                                    pic_line_val = {
+                                        'partner_id': vendor.id,
+                                        'name': line.product_id.name,
+                                        'product_id': line.product_id.id,
+                                        'product_uom_qty': line.qty,
+                                        'product_uom': line.uom_id.id,
+                                        'location_id': req.source_location_id.id,
+                                        'location_dest_id': req.destination_location_id.id,
+                                        'picking_id': stock_picking.id,
+                                        'origin': req.sequence,
+                                    }
+                                    self.env['stock.move'].create(pic_line_val)
                                 else:
                                     vals = {
                                         'partner_id': vendor.id,
-                                        'picking_type_id': req.picking_type_id.id,
+                                        'picking_type_id': picking_type_id.id,
                                         'company_id': req.company_id.id,
                                         'req_picking_id': req.id,
                                         'origin': req.sequence,
                                         'location_id': req.internal_picking_id.default_location_src_id.id,
                                         'location_dest_id': req.internal_picking_id.default_location_dest_id.id,
                                     }
-                                stock_picking = self.env['stock.picking'].create(vals)
-                                if req.choose_manual_location:
+                                    stock_picking = self.env['stock.picking'].create(vals)
                                     pic_line_val = {
                                         'partner_id': vendor.id,
                                         'name': line.product_id.name,
                                         'product_id': line.product_id.id,
                                         'product_uom_qty': line.qty,
                                         'product_uom': line.uom_id.id,
-                                        'location_id': req.source_location_id.id,
-                                        'location_dest_id': req.destination_location_id.id,
-                                        'picking_id': stock_picking.id,
-                                        'origin': req.sequence,
-                                    }
-                                else:
-                                    pic_line_val = {
-                                        'partner_id': vendor.id,
-                                        'name': line.product_id.name,
-                                        'product_id': line.product_id.id,
-                                        'product_uom_qty': line.qty,
-                                        'product_uom': line.uom_id.id,
-                                        'location_id': req.internal_picking_id.default_location_src_id.id or vendor.property_stock_supplier.id,
+                                        'location_id': req.internal_picking_id.default_location_src_id.id,
                                         'location_dest_id': req.internal_picking_id.default_location_dest_id.id,
                                         'picking_id': stock_picking.id,
                                         'origin': req.sequence,
                                     }
-                                stock_move = self.env['stock.move'].create(pic_line_val)
+                                    self.env['stock.move'].create(pic_line_val)
                     req.write({
                         'state': 'po_created',
                     })
@@ -219,26 +244,63 @@ class PurchaseRequisition(models.Model):
             )
 
     def action_reject(self):
-        pass
+        for record in self:
+            picking_requisition_ids = self.env['stock.picking'].search([('origin', '=', record.sequence)])
+            if picking_requisition_ids:
+                for req in picking_requisition_ids:
+                    req.action_cancel()
+                    req.unlink()
+            pur_requisition_ids = self.env['purchase.order'].search([('origin', '=', record.sequence)])
+            if pur_requisition_ids:
+                for p_req in pur_requisition_ids:
+                    p_req.button_cancel()
+                    p_req.unlink()
+            record.write({
+                'state': 'cancel',
+                'rejected_date': datetime.now(),
+                'rejected_by_id': self.env.user.id
+            })
 
     def reset_to_draft(self):
-        for req in self:
-            req.write({
+        for record in self:
+            picking_requisition_ids = self.env['stock.picking'].search([('origin', '=', record.sequence)])
+            if picking_requisition_ids:
+                for rec in picking_requisition_ids:
+                    rec.action_cancel()
+                    rec.unlink()
+            purchase_requisition_ids = self.env['purchase.order'].search([('origin', '=', record.sequence)])
+            if purchase_requisition_ids:
+                for rec in purchase_requisition_ids:
+                    rec.button_cancel()
+                    rec.unlink()
+            record.write({
                 'state': 'new'
             })
 
+    def cancel_requisition(self):
+        for record in self:
+            picking_requisition_ids = self.env['stock.picking'].search([('origin', '=', record.sequence)])
+            if picking_requisition_ids:
+                for req in picking_requisition_ids:
+                    req.action_cancel()
+                    req.unlink()
+            pur_requisition_ids = self.env['purchase.order'].search([('origin', '=', record.sequence)])
+            if pur_requisition_ids:
+                for p_req in pur_requisition_ids:
+                    p_req.button_cancel()
+                    p_req.unlink()
+            record.write({
+                'state': 'cancel'
+            })
+
     def action_received(self):
-        for req in self:
-            req.write({
+        for record in self:
+            record.write({
                 'state': 'received',
                 'rejected_date': datetime.now()
             })
 
-    def cancel_requisition(self):
-        for rec in self:
-            rec.write({
-                'state': 'cancel'
-            })
+
 
     @api.onchange('department_id', 'employee_id')
     def onchange_department(self):
@@ -280,3 +342,14 @@ class PurchaseOrder(models.Model):
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
     req_picking_id = fields.Many2one('minhduc.purchase.requisition', string='Purchase Requisition')
+
+
+class HrEmployee(models.Model):
+    _inherit = 'hr.employee'
+
+    destination_location_id = fields.Many2one('stock.location', 'Destination Location')
+
+
+class HrDepartiment(models.Model):
+    _inherit = 'hr.department'
+    destination_location_id = fields.Many2one('stock.location', 'Destination Location')

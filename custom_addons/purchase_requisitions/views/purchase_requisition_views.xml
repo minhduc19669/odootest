@@ -30,6 +30,8 @@
                     <button name="create_picking_po" type="object" string="Create Picking and PO"
                             attrs="{'invisible': [('state', 'in', ['new','department_approval','approve_ur','received','po_created','cancel'])]}"
                             groups="purchase_requisitions.group_purchase_requisition_user,purchase_requisitions.group_purchase_department_manager"/><!---->
+                    <button name="action_received" type="object" string="Received" groups="base.group_user"
+                            attrs="{'invisible': [('state', 'in', ['new','department_approval','approve_ur','approved','received','cancel'])]}"/><!---->
                     <button name="cancel_requisition" string="Cancel" type="object" groups="base.group_user"
                             attrs="{'invisible':[('state','in',['department_approval','approve_ur','approved','po_created','received','cancel'])]}"/>
                     <button name="reset_to_draft" string="Reset To Draft" type="object"
@@ -42,10 +44,10 @@
                                 attrs="{'invisible': [('internal_picking_count', '=', 0)]}">
                             <field name="internal_picking_count" widget="statinfo" string="Internal Picking"/>
                         </button>
-<!--                        <button type="object" name="purchase_order_button" class="oe_stat_button" icon="fa-book"-->
-<!--                                attrs="{'invisible': [('purchase_order_count', '=', 0)]}">-->
-<!--                            <field name="purchase_order_count" widget="statinfo" string="Purchase Order"/>-->
-<!--                        </button>-->
+                        <button type="object" name="purchase_order_button" class="oe_stat_button" icon="fa-book"
+                                attrs="{'invisible': [('purchase_order_count', '=', 0)]}">
+                            <field name="purchase_order_count" widget="statinfo" string="Purchase Order"/>
+                        </button>
                     </div>
                     <div class="oe_title oe_left">
                         <field name="sequence"/>
@@ -79,7 +81,7 @@
                             </field>
                         </page>
                         <page string="Picking Details"
-                              groups="purchase_requisitions.group_purchase_requisition_user,purchase_requisitions.group_purchase_department_manager">
+                              groups="base.group_user">
                             <group>
                                 <field name="choose_manual_location"/>
                             </group>
@@ -89,7 +91,8 @@
                             <group string="Internal Picking Config">
                                 <field name="source_location_id"
                                        attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
-                                <field name="destination_location_id" attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
+                                <field name="destination_location_id"
+                                       attrs="{'readonly':[('state','in',['cancel'])],'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',False)]}"/>
                                 <field name="internal_picking_id"
                                        attrs="{'required':[('choose_manual_location','=',True)],'invisible':[('choose_manual_location','=',True)]}"/>
                             </group>
@@ -127,6 +130,31 @@
                 <field name="requisition_date"/>
                 <field name="state"/>
             </tree>
+        </field>
+    </record>
+
+    <record id="hr_employee_form" model="ir.ui.view">
+        <field name="name">hr.employee.form</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Purchase Requisition Setting">
+                    <group>
+                        <field name="destination_location_id"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="hr_department_form" model="ir.ui.view">
+        <field name="name">hr.department.form</field>
+        <field name="model">hr.department</field>
+        <field name="inherit_id" ref="hr.view_department_form"/>
+        <field name="arch" type="xml">
+            <field name="manager_id" position="after">
+                <field name="destination_location_id"/>
+            </field>
         </field>
     </record>
 

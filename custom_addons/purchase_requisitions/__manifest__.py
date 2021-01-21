@@ -11,7 +11,8 @@
         'security/ir.model.access.csv',
         'security/purchase_requisition_security.xml',
         'views/purchase_requisition_views.xml',
-        'data/purchase_sequence.xml'
+        'data/purchase_sequence.xml',
+        'reports/purchase_requisition_tmp.xml'
     ],
     'demo': [],
     'images': [],
