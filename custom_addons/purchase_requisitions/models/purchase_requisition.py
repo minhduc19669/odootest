@@ -64,9 +64,6 @@ class PurchaseRequisition(models.Model):
             [('code', '=', 'internal'), ('company_id', '=', self.env.user.company_id.id)])
         return result[0]
 
-    # @api.onchange('company_id','picking_type_id','choose_manual_location')
-    # def _checker(self):
-    #     pass
     def _get_purchase_order_count(self):
         for rec in self:
             purchase_order_ids = self.env['purchase.order'].search([('po_requisition_ids', '=', rec.id)])
@@ -241,9 +238,9 @@ class PurchaseRequisition(models.Model):
                                         'origin': req.sequence,
                                     }
                                     self.env['stock.move'].create(pic_line_val)
-                    req.write({
-                        'state': 'po_created',
-                    })
+                req.write({
+                    'state': 'po_created',
+                })
 
     def action_approve(self):
         for req in self:
@@ -312,11 +309,10 @@ class PurchaseRequisition(models.Model):
                 'rejected_date': datetime.now()
             })
 
-    @api.onchange('department_id', 'employee_id', 'responsible_requisition_id')
+    @api.onchange('employee_id')
     def onchange_department(self):
         for rec in self:
-            if rec.choose_manual_location:
-                rec.destination_location_id = rec.employee_id.destination_location_id.id
+            rec.destination_location_id = rec.employee_id.destination_location_id.id
             rec.department_id = rec.employee_id.sudo().department_id.id
             responsible_requisition_id = rec.employee_id.parent_id.id
             rec.requisition_date = datetime.now()
@@ -341,7 +337,7 @@ class RequisitionLine(models.Model):
         [
             ('purchase_order', 'Purchase Order'),
             ('internal_picking', 'Internal Picking')
-        ], default='purchase_order', string='Requisition Action'
+        ], string='Requisition Action'
     )
 
     @api.onchange('product_id', 'description', 'uom_id')
