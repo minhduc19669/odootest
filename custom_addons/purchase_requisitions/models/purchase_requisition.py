@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from odoo import models, fields, api, _
 
 
@@ -15,12 +14,11 @@ class PurchaseRequisition(models.Model):
     _description = "Purchase Requisition"
     _rec_name = 'sequence'
     _order = 'sequence asc'
-
     sequence = fields.Char(string='Sequence', readonly=True, copy=False, index=True, default=lambda self: _('New'),
                            required=True)
     employee_id = fields.Many2one('hr.employee', string="Employee", required=True)
     department_id = fields.Many2one('hr.department', string='Department', required=True)
-    responsible_requisition_id = fields.Many2one('res.users', string='Requisition Reponsible')
+    responsible_requisition_id = fields.Many2one('hr.employee', string='Requisition Reponsible')
     requisition_date = fields.Date('Requisition Date', required=True)
     received_date = fields.Date('Receive Date', required=True)
     requisition_deadline = fields.Date('Requisition DeadLine')
@@ -44,13 +42,27 @@ class PurchaseRequisition(models.Model):
                                            string='Requisition Line ID')
     confirmed_by_id = fields.Many2one('res.users', string='Confirmed By', copy=False)
     confirmed_date = fields.Date(string='Confirmed Date', readonly=True, copy=False)
-    picking_type_id = fields.Many2one('stock.picking.type', string='Purchase Operation Type', required=True)
-    choose_manual_location = fields.Boolean(string='Choose manual location')
+    picking_type_id = fields.Many2one('stock.picking.type', string='Purchase Operation Type', required=True,
+                                      default=lambda self: self._default_picking_type())
+    choose_manual_location = fields.Boolean(string='Choose Manual Location')
     destination_location_id = fields.Many2one('stock.location', 'Destination Location')
     source_location_id = fields.Many2one('stock.location', 'Source Location')
-    internal_picking_id = fields.Many2one('stock.picking.type', 'Internal picking type')
+    internal_picking_id = fields.Many2one('stock.picking.type', 'Internal Picking Type',
+                                          default=lambda self: self._default_internal_picking_type())
     internal_picking_count = fields.Integer('Internal Picking Count', compute='_get_internal_picking_count')
     purchase_order_count = fields.Integer('Purchase Order', compute='_get_purchase_order_count')
+
+    @api.model
+    def _default_picking_type(self):
+        result = self.env['stock.picking.type'].search(
+            [('code', '=', 'incoming'), ('company_id', '=', self.env.user.company_id.id)])
+        return result[0]
+
+    @api.model
+    def _default_internal_picking_type(self):
+        result = self.env['stock.picking.type'].search(
+            [('code', '=', 'internal'), ('company_id', '=', self.env.user.company_id.id)])
+        return result[0]
 
     # @api.onchange('company_id','picking_type_id','choose_manual_location')
     # def _checker(self):
@@ -300,17 +312,24 @@ class PurchaseRequisition(models.Model):
                 'rejected_date': datetime.now()
             })
 
-
-
-    @api.onchange('department_id', 'employee_id')
+    @api.onchange('department_id', 'employee_id', 'responsible_requisition_id')
     def onchange_department(self):
         for rec in self:
+            if rec.choose_manual_location:
+                rec.destination_location_id = rec.employee_id.destination_location_id.id
             rec.department_id = rec.employee_id.sudo().department_id.id
+            responsible_requisition_id = rec.employee_id.parent_id.id
+            rec.requisition_date = datetime.now()
+            rec.received_date = datetime.now()
+            rec.company_id = rec.employee_id.company_id.id
+            if responsible_requisition_id:
+                result = self.env['hr.employee'].search([('id', '=', responsible_requisition_id)])
+                rec.responsible_requisition_id = result.id
+            return {}
 
 
 class RequisitionLine(models.Model):
     _name = 'requisition.line'
-
     _description = 'Requisition Line'
     product_id = fields.Many2one('product.product', string='Product', required=True)
     description = fields.Text('Description')
@@ -335,7 +354,6 @@ class RequisitionLine(models.Model):
 
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
-
     po_requisition_ids = fields.Many2one('minhduc.purchase.requisition', string='Purchase Requisition')
 
 
@@ -346,7 +364,6 @@ class StockPicking(models.Model):
 
 class HrEmployee(models.Model):
     _inherit = 'hr.employee'
-
     destination_location_id = fields.Many2one('stock.location', 'Destination Location')
 
 

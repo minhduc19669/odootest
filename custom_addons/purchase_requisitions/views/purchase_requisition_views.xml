@@ -18,13 +18,13 @@
                     <button name="confirm_requisition" string="Confirm" type="object" class="btn-primary"
                             groups="base.group_user"
                             attrs="{'invisible':[('state','in',['department_approval','approve_ur','approved','po_created','received','cancel'])]}"/>
-                    <button name="department_approve" string="Department Approve" type="object"
+                    <button name="department_approve" class="btn-primary" string="Department Approve" type="object"
                             groups="purchase_requisitions.group_purchase_department_manager"
                             attrs="{'invisible':[('state','in',['new','cancel','approve_ur','approved','po_created','received'])]}"/>
                     <button name="action_reject" type="object" string="Reject"
                             attrs="{'invisible': [('state', 'in', ['new','approved','po_created','cancel'])]}"
                             groups="purchase_requisitions.group_purchase_requisition_user,purchase_requisitions.group_purchase_department_manager"/>
-                    <button name="action_approve" type="object" string="Approve"
+                    <button name="action_approve" class="btn-primary" type="object" string="Approve"
                             attrs="{'invisible': [('state', 'in', ['new','department_approval','po_created','received','cancel','approved'])]}"
                             groups="purchase_requisitions.group_purchase_requisition_user"/>
                     <button name="create_picking_po" type="object" string="Create Picking and PO"
@@ -81,7 +81,7 @@
                             </field>
                         </page>
                         <page string="Picking Details"
-                              groups="base.group_user">
+                              groups="purchase_requisitions.group_purchase_department_manager,purchase_requisitions.group_purchase_requisition_user">
                             <group>
                                 <field name="choose_manual_location"/>
                             </group>
